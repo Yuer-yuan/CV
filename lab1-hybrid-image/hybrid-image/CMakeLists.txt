@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22.1)
+project( HybridImage )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
+add_executable( HybridImage hybrid-image.cpp )
+target_link_libraries( HybridImage ${OpenCV_LIBS} )
