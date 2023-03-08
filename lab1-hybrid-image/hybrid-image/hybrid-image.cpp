@@ -3,7 +3,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
 
-#define RESOLVE true
+#define RESOLVE false
 
 enum BorderType {
     BLACK = 0,
@@ -15,7 +15,7 @@ cv::Mat gen_gaussian_kernel(int ksize, double sigma = -1.0, int dim = 2);
 cv::Mat flip_kernel(const cv::Mat& kernel, int dim = 2);
 cv::Mat transform(const cv::Mat& src);
 cv::Mat pad(const cv::Mat& src, int size, int border_type = 0);
-cv::Mat conv1D(const cv::Mat& src, const cv::Mat& kernel, int padding = 0, int stride = 1, int border_type = 0, int axis = 0);
+cv::Mat conv1D(const cv::Mat& src, const cv::Mat& kernel, int padding = 0, int stride = 1, int border_type = 0);
 cv::Mat conv2D(const cv::Mat& src, const cv::Mat& kernel, int padding = 0, int stride = 1, int border_type = 0);
 cv::Mat gaussian_blur(const cv::Mat& src, int ksize, double sigma = -1.0, bool resolve = false);
 cv::Mat add(const cv::Mat& src1, const cv::Mat& src2);
@@ -176,15 +176,14 @@ cv::Mat conv2D(const cv::Mat& src, const cv::Mat& kernel, int padding, int strid
     CV_Assert(stride > 0);
     CV_Assert(border_type == BorderType::BLACK || border_type == BorderType::REPLICATE);
 
-    cv::Mat padded, kernel_flip;
+    cv::Mat padded;
     int dst_rows, dst_cols;
     const cv::Vec3b *p_padded;
     cv::Vec3b *p_dst;
     const double *p_kernel;
     int kernel_size;
 
-    kernel_flip = flip_kernel(kernel);
-    kernel_size = kernel_flip.rows;
+    kernel_size = kernel.rows;
     dst_rows = (src.rows - kernel_size + (padding << 1)) / stride + 1;
     dst_cols = (src.cols - kernel_size + (padding << 1)) / stride + 1;
     dst = cv::Mat::zeros(dst_rows, dst_cols, src.type());
@@ -194,7 +193,7 @@ cv::Mat conv2D(const cv::Mat& src, const cv::Mat& kernel, int padding, int strid
         for (int j = 0; j < dst_cols; j++) {
             for (int k = 0; k < kernel_size; k++) {
                 p_padded = padded.ptr<cv::Vec3b>(i * stride + k);
-                p_kernel = kernel_flip.ptr<double>(k);
+                p_kernel = kernel.ptr<double>(k);
                 for (int l = 0; l < kernel_size; l++) {
                     p_dst[j] += p_padded[j * stride + l] * p_kernel[l];
                 }
@@ -212,10 +211,9 @@ cv::Mat conv2D(const cv::Mat& src, const cv::Mat& kernel, int padding, int strid
  * @param padding
  * @param stride
  * @param border_type
- * @param axis 0 (along rows direction) 1 (along cols direction)
  * @return
  */
-cv::Mat conv1D(const cv::Mat& src, const cv::Mat& kernel, int padding, int stride, int border_type, int axis) {
+cv::Mat conv1D(const cv::Mat& src, const cv::Mat& kernel, int padding, int stride, int border_type) {
     cv::Mat dst;
 
     CV_Assert(src.data);
@@ -224,41 +222,44 @@ cv::Mat conv1D(const cv::Mat& src, const cv::Mat& kernel, int padding, int strid
     CV_Assert(padding >= 0);
     CV_Assert(stride >= 0);
     CV_Assert(border_type == BorderType::BLACK || border_type == BorderType::REPLICATE);
-    CV_Assert(axis == 0 || axis == 1);
 
-    cv::Mat padded, kernel_flip;
-    int dst_rows, dst_cols;
+    cv::Mat padded, temp;
+    int dst_rows, dst_cols, temp_rows, temp_cols;
     int kernel_size;
     const cv::Vec3b *p_padded;
-    cv::Vec3b *p_dst;
+    cv::Vec3b *p_dst, *p_temp;
     const double *p_kernel;
 
     kernel_size = kernel.cols;
     padded = pad(src, padding, border_type);
-    kernel_flip = flip_kernel(kernel);
-    p_kernel = kernel_flip.ptr<double>(0);
-    if (axis == 0) {    // conv vertically
-        dst_rows = (src.rows - kernel_size + (padding << 1)) / stride + 1;
-        dst_cols = src.cols;
-        dst = cv::Mat::zeros(dst_cols, dst_rows, src.type());   // we transform it back later
-        padded = transform(padded);
-    } else {    // axis == 1, conv horizontally
-        dst_rows = src.rows;
-        dst_cols = (src.cols - kernel_size + (padding << 1)) / stride + 1;
-        dst = cv::Mat::zeros(dst_rows, dst_cols, src.type());
-    }
-    for (int i = 0; i < dst.rows; i++) {
-        p_dst = dst.ptr<cv::Vec3b>(i);
+    p_kernel = kernel.ptr<double>(0);
+    dst_rows = (padded.rows - kernel_size) / stride + 1;
+    dst_cols = (padded.cols - kernel_size) / stride + 1;
+    dst = cv::Mat::zeros(dst_cols, dst_rows, src.type());
+    temp_rows = padded.rows;
+    temp_cols = dst_cols;
+    temp = cv::Mat::zeros(temp_rows, temp_cols, src.type());
+
+    for (int i = 0; i < temp_rows; i++) {
+        p_temp = temp.ptr<cv::Vec3b>(i);
         p_padded = padded.ptr<cv::Vec3b>(i);
-        for (int j = 0; j < dst.cols; j++) {
+        for (int j = 0; j < temp_cols; j++) {
             for (int k = 0; k < kernel_size; k++) {
-                p_dst[j] += p_padded[j * stride + k] * p_kernel[k];
+                p_temp[j] += p_padded[j * stride + k] * p_kernel[k];
             }
         }
     }
-    if (axis == 0) {
-        dst = transform(dst);
+    cv::Mat another = transform(temp);
+    for (int i = 0; i < dst.rows; i++) {    // BUG FIXED: dst.rows (right), but dst_rows (wrong) ... don't know why...
+        p_dst = dst.ptr<cv::Vec3b>(i);
+        p_temp = another.ptr<cv::Vec3b>(i);
+        for (int j = 0; j < dst.cols; j++) {
+            for (int k = 0; k < kernel_size; k++) {
+                p_dst[j] += p_temp[j * stride + k] * p_kernel[k];
+            }
+        }
     }
+    dst = transform(dst);
     return dst;
 }
 
@@ -355,17 +356,16 @@ cv::Mat gaussian_blur(const cv::Mat &src, int ksize, double sigma, bool resolve)
     cv::Mat kernel;
     if (resolve) {
         kernel = gen_gaussian_kernel(ksize, sigma, 1);
-        dst = conv1D(src, kernel, (kernel.cols - 1) >> 1, 1, 1, 0);
-        dst = conv1D(dst, kernel, (kernel.cols - 1) >> 1, 1, 1, 1);
+        dst = conv1D(src, kernel, (kernel.cols - 1) >> 1, 1, 1);
     } else {
-        kernel = gen_gaussian_kernel(ksize, sigma);
+        kernel = gen_gaussian_kernel(ksize, sigma, 2);
         dst = conv2D(src, kernel, (kernel.cols - 1) >> 1, 1, 1);
     }
     return dst;
 }
 
 /**
- * @brief flip kernel (for convolution)
+ * @brief flip kernel (for convolution may not be used)
  *        V1.0 only for double type
  * 
  * @param kernel 
@@ -394,7 +394,7 @@ cv::Mat flip_kernel(const cv::Mat &kernel, int dim) {
 }
 
 /**
- * @brief transform mat from [m, n] to [n, m]
+ * @brief transform mat from size[m, n] to size[n, m]
  * @param src
  * @return
  */
