@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.12)
+project( fft )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable( fft fft.cpp )
+target_link_libraries( fft ${OpenCV_LIBS} )
