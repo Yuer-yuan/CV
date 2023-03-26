@@ -1,0 +1,3 @@
+- c++程序基于Linux系统，在Windows系统下需要调整CMakeLists.txt文件，找到正确的OpenCV环境。
+- 需要将待混合的图像放于本目录的res文件夹下
+- c++程序运行方法：创建build文件夹，在其中执行`cmake ..`，再运行`hybrid-image`程序即可

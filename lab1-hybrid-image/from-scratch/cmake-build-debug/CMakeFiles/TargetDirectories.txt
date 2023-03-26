@@ -1,0 +1,3 @@
+/home/bill/mypro/CV/lab1-hybrid-image/hybrid-image/cmake-build-debug/CMakeFiles/HybridImage.dir
+/home/bill/mypro/CV/lab1-hybrid-image/hybrid-image/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/bill/mypro/CV/lab1-hybrid-image/hybrid-image/cmake-build-debug/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,3 @@
+/home/bill/mypro/CV/lab1-hybrid-image/fft/build/CMakeFiles/fft.dir
+/home/bill/mypro/CV/lab1-hybrid-image/fft/build/CMakeFiles/edit_cache.dir
+/home/bill/mypro/CV/lab1-hybrid-image/fft/build/CMakeFiles/rebuild_cache.dir
