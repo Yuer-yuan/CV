@@ -21,8 +21,21 @@ LDFLAGS := $(OPENCV_LIBS)
 ASSEST_DIR := ./assets
 IMG_PATH := $(ASSEST_DIR)/Lenna.png
 SAVE_DIR := $(BUILD_DIR)/save
-LOW := 30
-HIGH := 152
+LOW := 15
+HIGH := 20
+LINEAR := 1	# linear interpolation
+INTER := 1	# interactive
+
+MAIN_ARGS = -i $(IMG_PATH) -s $(SAVE_DIR) -l $(LOW) -h $(HIGH)
+ifeq ($(LINEAR), 1)
+	MAIN_ARGS += -n
+endif
+ifeq ($(INTER), 1)
+	MAIN_ARGS += -a
+endif
+
+.PHONY: all
+all: $(BUILD_DIR)/$(TARGET_EXEC)
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	@$(CXX) $(OBJS) -o $@ $(LDFLAGS)
@@ -34,7 +47,7 @@ $(BUILD_DIR)/%.o: %.cpp
 
 .PHONY: run
 run: $(BUILD_DIR)/$(TARGET_EXEC)
-	@$(BUILD_DIR)/$(TARGET_EXEC) -i $(IMG_PATH) -s $(SAVE_DIR) -l $(LOW) -h $(HIGH)
+	@$(BUILD_DIR)/$(TARGET_EXEC) $(MAIN_ARGS)
 
 .PHONY: clean
 clean:

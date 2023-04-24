@@ -8,16 +8,20 @@
 // global variables
 char *img_path = nullptr;
 char *save_dir = nullptr;
-double low_threshold = 0.3 * 255;
-double high_threshold = 0.6 * 255;
+double low_threshold = 30;
+double high_threshold = 60;
+bool linear_interpolation = true;
+bool interactive = false;
 
 // options
-const char *optstring = "i:s:Hl:h:";
+const char *optstring = "i:s:Hl:h:na";
 static struct option long_options[] = {
     {"img", required_argument, nullptr, 'i'},
     {"low_threshold", required_argument, nullptr, 'l'},
     {"high_threshold", required_argument, nullptr, 'r'},
     {"save", required_argument, nullptr, 's'},
+    {"linear_interpolation", no_argument, nullptr, 'n'},
+    {"interactive", no_argument, nullptr, 'a'},
     {"help", no_argument, nullptr, 'H'},
     {nullptr, 0, nullptr, 0}
 };
@@ -29,6 +33,8 @@ const char *usage[] = {
     "  -l, --low_threshold     Low threshold of double threshold",
     "  -h, --high_threshold    High threshold of double threshold",
     "  -s, --save <save_dir>   Directory of save file",
+    "  -n, --linear_interpolation       Use linear interpolation",
+    "  -a, --interactive       Interactive mode",
     "  -H, --help              Show this help message and exit",
     nullptr
 };
@@ -46,6 +52,12 @@ int main(int argc, char *argv[]) {
                 break;
             case 'l':
                 low_threshold = atof(optarg);
+                break;
+            case 'n':
+                linear_interpolation = false;
+                break;
+            case 'a':
+                interactive = true;
                 break;
             case 'h':
                 high_threshold = atof(optarg);
@@ -66,13 +78,14 @@ int main(int argc, char *argv[]) {
     }
 
     cv::Mat img_gray = cv::imread(img_path, cv::IMREAD_GRAYSCALE);
-    img_gray = blur(img_gray);
+    if (interactive) cv::imshow("original", img_gray);
 
     double duration = static_cast<double>(cv::getTickCount());
-    canny(img_gray, low_threshold, high_threshold, save_dir);
+    cv::Mat img_canny = canny(img_gray, low_threshold, high_threshold, linear_interpolation);
     duration = (static_cast<double>(cv::getTickCount()) - duration) / cv::getTickFrequency();
     std::cout << "Time: " << duration << std::endl;
 
-    cv::waitKey(0);
+    if (interactive) cv::waitKey(0);
+    else cv::imwrite(std::string(save_dir) + "/" + "canny.png", img_canny);
     return 0;
 }

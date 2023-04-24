@@ -7,13 +7,20 @@
 #include <vector>
 #include <string>
 
-enum wnd_name { GRAD, DIR, SUPP, STRONG, WEAK, FILTERED, HYST };
-const char *wnd_name[] = { "gradient", "direction", "suppressed", "strong", "weak", "filtered", "hysteresis" };
+extern bool interactive;
+
+enum wnd_name { BLUR, GRAD, DIR, SUPP, STRONG, WEAK, FILTERED, HYST };
+const char *wnd_name[] = { "blur", "gradient", "direction", "suppressed", "strong", "weak", "filtered", "hysteresis" };
+
 static cv::Mat img_gray_local;
+static cv::Mat img_blur;
 static cv::Mat img_grad_norm, img_grad_abs, img_angle, img_grad_x, img_grad_y;
 static cv::Mat img_suppressed;
 static cv::Mat img_strong, img_weak, img_filtered;
 static cv::Mat img_hysteresis;
+
+static int blur_ksize = 5, blur_ksize_max = 31;
+static int blur_sigma = 1, blur_sigma_max = 10;
 
 static int sobel_ksize = 3, sobel_ksize_max = 7;    // sobel kernel size must be 1, 3, 5, or 7
 static int linear_interpolation = 0, linear_interpolation_max = 1;  // 0: no linear interpolation, 1: linear interpolation
@@ -22,12 +29,16 @@ static int low_threshold, high_threshold, low_threshold_max = 255, high_threshol
 static void create_trackbars();
 static void on_trackbar_canny(int, void *);
 
-cv::Mat canny(cv::Mat &img_gray, double low_thresh, double high_thresh, const char *save_dir) {
+cv::Mat canny(cv::Mat &img_gray, double low_thresh, double high_thresh, bool linear_inter) {
     CV_Assert(!img_gray.empty());
 
     img_gray_local = img_gray.clone();
     low_threshold = low_thresh, high_threshold = high_thresh;
+    linear_interpolation = linear_inter;
     if (low_threshold > high_threshold) std::swap(low_threshold, high_threshold);
+
+    // eliminate noise by applying gaussian blur
+    blur();
 
     // get gradient and direction by applying sobel operator
     get_gradient();
@@ -45,20 +56,28 @@ cv::Mat canny(cv::Mat &img_gray, double low_thresh, double high_thresh, const ch
     // hysteresis
     hysteresis();
 
-    create_trackbars();
+    if (interactive) create_trackbars();
 
     return img_hysteresis;
 }
 
+static void blur() {
+    if (blur_ksize % 2 == 0) blur_ksize += 1;
+    cv::GaussianBlur(img_gray_local, img_blur, cv::Size(blur_ksize, blur_ksize), (double)blur_sigma);
+    if (interactive) cv::imshow(wnd_name[BLUR], img_blur);
+}
+
 static void get_gradient() {
     if (sobel_ksize % 2 == 0) sobel_ksize++;
-    cv::Sobel(img_gray_local, img_grad_x, CV_32FC1, 1, 0, sobel_ksize);
-    cv::Sobel(img_gray_local, img_grad_y, CV_32FC1, 0, 1, sobel_ksize);
+    cv::Sobel(img_blur, img_grad_x, CV_32FC1, 1, 0, sobel_ksize);
+    cv::Sobel(img_blur, img_grad_y, CV_32FC1, 0, 1, sobel_ksize);
     cv::magnitude(img_grad_x, img_grad_y, img_grad_abs);    // grad_abs = sqrt(src1^2 + src2^2)
     cv::phase(img_grad_x, img_grad_y, img_angle, true);     // angle = atan2(src1, src2) (in degree 0~360)
     img_grad_norm = normalize_to_8U(img_grad_abs);
-    cv::imshow(wnd_name[GRAD], img_grad_norm);
-    cv::imshow(wnd_name[DIR], normalize_to_8U(img_angle));
+    if (interactive) {
+        cv::imshow(wnd_name[GRAD], img_grad_norm);
+        cv::imshow(wnd_name[DIR], normalize_to_8U(img_angle));
+    }
 }
 
 static void non_maximum_suppress() {
@@ -142,7 +161,7 @@ static void non_maximum_suppress() {
                 
         }
     }
-    cv::imshow(wnd_name[SUPP], img_suppressed);
+    if (interactive) cv::imshow(wnd_name[SUPP], img_suppressed);
 }
 
 static void double_threshold() {
@@ -168,9 +187,11 @@ static void double_threshold() {
             }
         }
     }
-    cv::imshow(wnd_name[STRONG], img_strong);
-    cv::imshow(wnd_name[WEAK], img_weak);
-    cv::imshow(wnd_name[FILTERED], img_filtered);
+    if (interactive) {
+        cv::imshow(wnd_name[STRONG], img_strong);
+        cv::imshow(wnd_name[WEAK], img_weak);
+        cv::imshow(wnd_name[FILTERED], img_filtered);
+    }
 }
 
 static void hysteresis() {
@@ -193,15 +214,18 @@ static void hysteresis() {
             }
         }
     }
-    cv::imshow(wnd_name[HYST], img_hysteresis);
+    if (interactive) cv::imshow(wnd_name[HYST], img_hysteresis);
 }
 
 static void create_trackbars() {
+    cv::namedWindow(wnd_name[BLUR], cv::WINDOW_AUTOSIZE);
     cv::namedWindow(wnd_name[GRAD], cv::WINDOW_AUTOSIZE);
     cv::namedWindow(wnd_name[SUPP], cv::WINDOW_AUTOSIZE);
     cv::namedWindow(wnd_name[STRONG], cv::WINDOW_AUTOSIZE);
     cv::namedWindow(wnd_name[WEAK], cv::WINDOW_AUTOSIZE);
 
+    cv::createTrackbar("blur_ksize", wnd_name[BLUR], &blur_ksize, blur_ksize_max, on_trackbar_canny);
+    cv::createTrackbar("blur_sigma", wnd_name[BLUR], &blur_sigma, blur_sigma_max, on_trackbar_canny);
     cv::createTrackbar("sobel_size", wnd_name[GRAD], &sobel_ksize, sobel_ksize_max, on_trackbar_canny);
     cv::createTrackbar("linear_interpolation", wnd_name[SUPP], &linear_interpolation, linear_interpolation_max, on_trackbar_canny);
     cv::createTrackbar("low_threshold", wnd_name[WEAK], &low_threshold, low_threshold_max, on_trackbar_canny);
@@ -209,6 +233,10 @@ static void create_trackbars() {
 }
 
 static void on_trackbar_canny(int, void *) {
+    if (blur_ksize % 2 == 0) {
+        blur_ksize++;
+        cv::setTrackbarPos("blur_ksize", wnd_name[BLUR], blur_ksize);
+    }
     if (sobel_ksize % 2 == 0) {
         sobel_ksize++;
         cv::setTrackbarPos("sobel_size", wnd_name[GRAD], sobel_ksize);
@@ -218,6 +246,7 @@ static void on_trackbar_canny(int, void *) {
         cv::setTrackbarPos("low_threshold", wnd_name[WEAK], low_threshold);
         cv::setTrackbarPos("high_threshold", wnd_name[STRONG], high_threshold);
     }
+    blur();
     get_gradient();
     non_maximum_suppress();
     double_threshold();
