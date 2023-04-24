@@ -67,7 +67,12 @@ int main(int argc, char *argv[]) {
 
     cv::Mat img_gray = cv::imread(img_path, cv::IMREAD_GRAYSCALE);
     img_gray = blur(img_gray);
-    canny(img_gray, low_threshold, high_threshold, save_dir);
 
+    double duration = static_cast<double>(cv::getTickCount());
+    canny(img_gray, low_threshold, high_threshold, save_dir);
+    duration = (static_cast<double>(cv::getTickCount()) - duration) / cv::getTickFrequency();
+    std::cout << "Time: " << duration << std::endl;
+
+    cv::waitKey(0);
     return 0;
 }
