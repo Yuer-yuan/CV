@@ -10,7 +10,7 @@ char *img_path = nullptr;
 char *save_dir = nullptr;
 double low_threshold = 30;
 double high_threshold = 60;
-bool linear_interpolation = true;
+bool linear_interpolation = false;
 bool interactive = false;
 
 // options
@@ -86,6 +86,6 @@ int main(int argc, char *argv[]) {
     std::cout << "Time: " << duration << std::endl;
 
     if (interactive) cv::waitKey(0);
-    else cv::imwrite(std::string(save_dir) + "/" + "canny.png", img_canny);
+    else cv::imwrite(std::string(save_dir) + "/" + get_file_name(img_path) + ".png", img_canny);
     return 0;
 }

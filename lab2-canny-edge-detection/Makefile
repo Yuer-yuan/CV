@@ -9,7 +9,8 @@ SRCS := $(shell find $(SRC_DIR) -name *.cpp -type f)
 OBJS := $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -O2 $(INC_FLAGS)
+CXXFLAGS := -std=c++17 $(INC_FLAGS)
+MODE ?= debug
 
 OPENCV_CFLAGS := -I/usr/local/include/opencv4
 OPENCV_LIBS := -L/usr/local/lib -lopencv_core -lopencv_imgproc -lopencv_highgui -lopencv_imgcodecs
@@ -24,7 +25,7 @@ SAVE_DIR := $(BUILD_DIR)/save
 LOW := 15
 HIGH := 20
 LINEAR := 1	# linear interpolation
-INTER := 1	# interactive
+INTER := 0	# interactive
 
 MAIN_ARGS = -i $(IMG_PATH) -s $(SAVE_DIR) -l $(LOW) -h $(HIGH)
 ifeq ($(LINEAR), 1)
@@ -43,11 +44,19 @@ $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 $(BUILD_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@mkdir -p $(SAVE_DIR)
-	@$(CXX) $(CXXFLAGS) -c $< -o $@
+ifeq ($(MODE), debug)	# debug mode
+	@$(CXX) $(CXXFLAGS) -g -O0 -Wall -c $< -o $@
+else					# release mode
+	@$(CXX) $(CXXFLAGS) -O2 -c $< -o $@
+endif
 
 .PHONY: run
 run: $(BUILD_DIR)/$(TARGET_EXEC)
 	@$(BUILD_DIR)/$(TARGET_EXEC) $(MAIN_ARGS)
+
+.PHONY: gdb
+gdb: $(BUILD_DIR)/$(TARGET_EXEC)
+	@gdb --args $(BUILD_DIR)/$(TARGET_EXEC) $(MAIN_ARGS)
 
 .PHONY: clean
 clean:
