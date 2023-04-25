@@ -24,8 +24,9 @@ IMG_PATH := $(ASSEST_DIR)/Lenna.png
 SAVE_DIR := $(BUILD_DIR)/save
 LOW := 15
 HIGH := 20
-LINEAR := 1	# linear interpolation
+LINEAR := 0	# linear interpolation
 INTER := 0	# interactive
+LINK := 0 	# predict edge point
 
 MAIN_ARGS = -i $(IMG_PATH) -s $(SAVE_DIR) -l $(LOW) -h $(HIGH)
 ifeq ($(LINEAR), 1)
@@ -33,6 +34,9 @@ ifeq ($(LINEAR), 1)
 endif
 ifeq ($(INTER), 1)
 	MAIN_ARGS += -a
+endif
+ifeq ($(LINK), 1)
+	MAIN_ARGS += -e
 endif
 
 .PHONY: all

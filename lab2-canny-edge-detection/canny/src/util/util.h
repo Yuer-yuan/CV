@@ -8,4 +8,8 @@ cv::Mat normalize_to_8U(cv::Mat &img);  // normalize to [0, 255] and convert to 
 
 std::string get_file_name(const std::string &path);
 
+cv::Mat color_with_grad(cv::Mat &grad, cv::Mat &orien);
+
+float wrap(float value, float min, float max, float step);
+
 #endif

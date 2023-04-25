@@ -12,9 +12,10 @@ double low_threshold = 30;
 double high_threshold = 60;
 bool linear_interpolation = false;
 bool interactive = false;
+bool edge_linking =false;
 
 // options
-const char *optstring = "i:s:Hl:h:na";
+const char *optstring = "i:s:Hl:h:nae";
 static struct option long_options[] = {
     {"img", required_argument, nullptr, 'i'},
     {"low_threshold", required_argument, nullptr, 'l'},
@@ -22,6 +23,7 @@ static struct option long_options[] = {
     {"save", required_argument, nullptr, 's'},
     {"linear_interpolation", no_argument, nullptr, 'n'},
     {"interactive", no_argument, nullptr, 'a'},
+    {"edge_linking", no_argument, nullptr, 'e'},
     {"help", no_argument, nullptr, 'H'},
     {nullptr, 0, nullptr, 0}
 };
@@ -35,6 +37,7 @@ const char *usage[] = {
     "  -s, --save <save_dir>   Directory of save file",
     "  -n, --linear_interpolation       Use linear interpolation",
     "  -a, --interactive       Interactive mode",
+    "  -e, --edge_linking      Predict edge point",
     "  -H, --help              Show this help message and exit",
     nullptr
 };
@@ -54,10 +57,13 @@ int main(int argc, char *argv[]) {
                 low_threshold = atof(optarg);
                 break;
             case 'n':
-                linear_interpolation = false;
+                linear_interpolation = true;
                 break;
             case 'a':
                 interactive = true;
+                break;
+            case 'e':
+                edge_linking =true;
                 break;
             case 'h':
                 high_threshold = atof(optarg);
@@ -81,7 +87,7 @@ int main(int argc, char *argv[]) {
     if (interactive) cv::imshow("original", img_gray);
 
     double duration = static_cast<double>(cv::getTickCount());
-    cv::Mat img_canny = canny(img_gray, low_threshold, high_threshold, linear_interpolation);
+    cv::Mat img_canny = canny(img_gray, low_threshold, high_threshold, linear_interpolation, edge_linking);
     duration = (static_cast<double>(cv::getTickCount()) - duration) / cv::getTickFrequency();
     std::cout << "Time: " << duration << std::endl;
 

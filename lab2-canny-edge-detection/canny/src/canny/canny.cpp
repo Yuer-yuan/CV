@@ -9,8 +9,8 @@
 
 extern bool interactive;
 
-enum wnd_name { BLUR, GRAD, DIR, SUPP, STRONG, WEAK, FILTERED, HYST };
-const char *wnd_name[] = { "blur", "gradient", "direction", "suppressed", "strong", "weak", "filtered", "hysteresis" };
+enum wnd_name { BLUR, GRAD, DIR, SUPP, STRONG, WEAK, FILTERED, HYST, VOTE, LINK };
+const char *wnd_name[] = { "blur", "gradient", "direction", "suppressed", "strong", "weak", "filtered", "hysteresis", "edge_vote", "edge_link" };
 
 static cv::Mat img_gray_local;
 static cv::Mat img_blur;
@@ -19,6 +19,9 @@ static cv::Mat img_suppressed;
 static cv::Mat img_strong, img_weak, img_filtered;
 static cv::Mat img_hysteresis;
 
+static cv::Mat img_edge_link_grad, img_edge_link_orien, img_edge_vote_grad, img_edge_vote_orien;
+static std::map<std::pair<int, int>, std::vector<std::pair<float, float>>> vec_pixel_grad; // <(i, j), (grad1, orien1), (grad2, orien2)>
+
 static int blur_ksize = 5, blur_ksize_max = 31;
 static int blur_sigma = 1, blur_sigma_max = 10;
 
@@ -26,16 +29,21 @@ static int sobel_ksize = 3, sobel_ksize_max = 7;    // sobel kernel size must be
 static int linear_interpolation = 0, linear_interpolation_max = 1;  // 0: no linear interpolation, 1: linear interpolation
 static int low_threshold, high_threshold, low_threshold_max = 255, high_threshold_max = 255;
 
+static int edge_linking = 0, edge_linking_max = 1;  // 0: no edge linking, 1: link edge
+static int edge_linking_threshold, edge_linking_threshold_max = 255;
+
 static void create_trackbars();
 static void on_trackbar_canny(int, void *);
 
-cv::Mat canny(cv::Mat &img_gray, double low_thresh, double high_thresh, bool linear_inter) {
+cv::Mat canny(cv::Mat &img_gray, double low_thresh, double high_thresh, bool linear_inter, bool edge_linking_param) {
     CV_Assert(!img_gray.empty());
 
     img_gray_local = img_gray.clone();
     low_threshold = low_thresh, high_threshold = high_thresh;
     linear_interpolation = linear_inter;
     if (low_threshold > high_threshold) std::swap(low_threshold, high_threshold);
+    edge_linking = edge_linking_param;
+    edge_linking_threshold = (low_threshold + high_threshold) >> 1;
 
     // eliminate noise by applying gaussian blur
     blur();
@@ -56,8 +64,17 @@ cv::Mat canny(cv::Mat &img_gray, double low_thresh, double high_thresh, bool lin
     // hysteresis
     hysteresis();
 
+    // edge link
+    img_edge_link_grad = cv::Mat::zeros(img_hysteresis.size(), CV_8UC1);
+    img_edge_link_orien = cv::Mat::zeros(img_hysteresis.size(), CV_32FC1);
+    img_edge_vote_grad = cv::Mat::zeros(img_hysteresis.size(), CV_8UC1);
+    img_edge_vote_orien = cv::Mat::zeros(img_hysteresis.size(), CV_32FC1);
+    if (edge_linking) edge_link();
+
+b:  // set for quick break point when debugging with gdb. a usage may like `b canny:b`
     if (interactive) create_trackbars();
 
+    if (edge_linking) return img_edge_link_grad;
     return img_hysteresis;
 }
 
@@ -77,6 +94,7 @@ static void get_gradient() {
     if (interactive) {
         cv::imshow(wnd_name[GRAD], img_grad_norm);
         cv::imshow(wnd_name[DIR], normalize_to_8U(img_angle));
+        cv::imshow("color_with_grad", color_with_grad(img_grad_norm, img_angle));
     }
 }
 
@@ -86,8 +104,8 @@ static void non_maximum_suppress() {
     if (!linear_interpolation) {
         float angle;
         uint8_t grad, grad1, grad2;
-        for (int i = 1; i < rows; i++) {
-            for (int j = 1; j < cols; j++) {
+        for (int i = 1; i < rows - 1; i++) {
+            for (int j = 1; j < cols - 1; j++) {
                 angle = img_angle.at<float>(i, j);
                 grad = img_grad_norm.at<uint8_t>(i, j);
                 if (angle >= 337.5 || angle < 22.5 || (angle >= 157.5 && angle < 202.5)) {
@@ -116,8 +134,8 @@ static void non_maximum_suppress() {
     } else {    // ref: https://blog.csdn.net/kezunhai/article/details/11620357
         float grad_x, grad_y, weight;
         float grad, grad_tmp1, grad_tmp2;
-        for (int i = 1; i < rows; i++) {
-            for (int j = 1; j < cols; j++) {
+        for (int i = 1; i < rows - 1; i++) {
+            for (int j = 1; j < cols - 1; j++) {
                 grad_x = img_grad_x.at<float>(i, j);
                 grad_y = img_grad_y.at<float>(i, j);
                 grad = img_grad_norm.at<uint8_t>(i, j);
@@ -171,7 +189,7 @@ static void double_threshold() {
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             grad = img_suppressed.at<uint8_t>(i, j);
-            fill = grad;
+            fill = 255;
             if (grad >= high_threshold) {
                 img_strong.at<uint8_t>(i, j) = fill;
                 img_weak.at<uint8_t>(i, j) = 0;
@@ -205,16 +223,18 @@ static void hysteresis() {
                 continue;
             }
             weak_pt = img_weak.at<uint8_t>(i, j);
-            if (weak_pt > 0) {
-                if (img_strong.at<uint8_t>(i - 1, j - 1) > 0 || img_strong.at<uint8_t>(i - 1, j) > 0 || img_strong.at<uint8_t>(i - 1, j + 1) > 0 ||
-                    img_strong.at<uint8_t>(i, j - 1) > 0 || img_strong.at<uint8_t>(i, j + 1) > 0 ||
-                    img_strong.at<uint8_t>(i + 1, j - 1) > 0 || img_strong.at<uint8_t>(i + 1, j) > 0 || img_strong.at<uint8_t>(i + 1, j + 1) > 0) {
-                        img_hysteresis.at<uint8_t>(i, j) = weak_pt;
-                }
+            if (weak_pt == 0) continue;
+            if (img_strong.at<uint8_t>(i - 1, j - 1) | img_strong.at<uint8_t>(i - 1, j) | img_strong.at<uint8_t>(i - 1, j + 1) |
+                img_strong.at<uint8_t>(i, j - 1) | img_strong.at<uint8_t>(i, j + 1) |
+                img_strong.at<uint8_t>(i + 1, j - 1) | img_strong.at<uint8_t>(i + 1, j) | img_strong.at<uint8_t>(i + 1, j + 1)) {
+                    img_hysteresis.at<uint8_t>(i, j) = weak_pt;
             }
         }
     }
-    if (interactive) cv::imshow(wnd_name[HYST], img_hysteresis);
+    if (interactive) {
+        cv::imshow(wnd_name[HYST], img_hysteresis);
+        cv::imshow("hysteresis_color_with_orientation", color_with_grad(img_hysteresis, img_angle));
+    }
 }
 
 static void create_trackbars() {
@@ -230,6 +250,7 @@ static void create_trackbars() {
     cv::createTrackbar("linear_interpolation", wnd_name[SUPP], &linear_interpolation, linear_interpolation_max, on_trackbar_canny);
     cv::createTrackbar("low_threshold", wnd_name[WEAK], &low_threshold, low_threshold_max, on_trackbar_canny);
     cv::createTrackbar("high_threshold", wnd_name[STRONG], &high_threshold, high_threshold_max, on_trackbar_canny);
+    if (edge_linking) cv::createTrackbar("edge_linking", wnd_name[LINK], &edge_linking_threshold, edge_linking_threshold_max, on_trackbar_canny);
 }
 
 static void on_trackbar_canny(int, void *) {
@@ -251,4 +272,94 @@ static void on_trackbar_canny(int, void *) {
     non_maximum_suppress();
     double_threshold();
     hysteresis();
+    if (edge_linking) edge_link();
+}
+
+static void edge_link() {
+    img_edge_link_grad.setTo(0);
+    img_edge_link_orien.setTo(cv::Scalar(0, 0, 0));
+    img_edge_vote_grad.setTo(0);
+    img_edge_vote_orien.setTo(cv::Scalar(0, 0, 0));
+    // vote by strong pixels
+    int rows = img_hysteresis.rows, cols = img_hysteresis.cols;
+    int pixel_grad;
+    float pixel_grad_x, pixel_grad_y;
+    float pixel_orien, pixel_orien_tan;
+    int pixel_1_x, pixel_1_y, pixel_2_x, pixel_2_y;
+    for (int i = 0; i < rows; i++) {    
+        for (int j = 0; j < cols; j++) {
+            if (!img_hysteresis.at<uint8_t>(i, j)) continue;
+            pixel_grad = img_grad_norm.at<uint8_t>(i, j);
+            pixel_orien = img_angle.at<float>(i, j);
+            pixel_orien_tan = wrap(pixel_orien + 90, 0, 180, 180);
+            // pixel_orien_tan = (int)(pixel_orien + 90) % 180;
+            pixel_grad_x = pixel_grad * cos(pixel_orien * M_PI / 180);
+            pixel_grad_y = pixel_grad * sin(pixel_orien * M_PI / 180);
+            if (pixel_orien_tan < 22.5 || pixel_orien_tan >= 157.5) {
+                pixel_1_x = pixel_2_x = i;
+                pixel_1_y = j - 1, pixel_2_y = j + 1;
+            } else if (pixel_orien_tan < 67.5) {
+                pixel_1_x = i - 1, pixel_2_x = i + 1;
+                pixel_1_y = j - 1, pixel_2_y = j + 1;
+            } else if (pixel_orien_tan < 112.5) {
+                pixel_1_x = i - 1, pixel_2_x = i + 1;
+                pixel_1_y = pixel_2_y = j;
+            } else {
+                pixel_1_x = i - 1, pixel_2_x = i + 1;
+                pixel_1_y = j + 1, pixel_2_y = j - 1;
+            }
+            std::vector<std::pair<int, int>> pixels;
+            if (!img_strong.at<uint8_t>(pixel_1_x, pixel_1_y)) pixels.push_back(std::make_pair(pixel_1_x, pixel_1_y));
+            if (!img_strong.at<uint8_t>(pixel_2_x, pixel_2_y)) pixels.push_back(std::make_pair(pixel_2_x, pixel_2_y));
+            for (auto pixel : pixels) {
+                if (vec_pixel_grad.find(pixel) == vec_pixel_grad.end()) {
+                    vec_pixel_grad[pixel] = std::vector<std::pair<float, float>>();
+                    vec_pixel_grad[pixel].push_back(std::make_pair(pixel_grad_x, pixel_grad_y));
+                } else {
+                    vec_pixel_grad[pixel].push_back(std::make_pair(pixel_grad_x, pixel_grad_y));
+                }
+            }
+        }
+    }
+    // vote by weak pixels
+    for (auto pixel_grad : vec_pixel_grad) {
+        int pixel_x = pixel_grad.first.first, pixel_y = pixel_grad.first.second;
+        if (img_weak.at<uint8_t>(pixel_x, pixel_y) == 0) continue;
+        pixel_grad.second.push_back(std::make_pair((float)img_grad_norm.at<uint8_t>(pixel_x, pixel_y), (float)img_grad_norm.at<uint8_t>(pixel_x, pixel_y)));
+    }
+    // calculate vote
+    for (auto pixel_grad : vec_pixel_grad) {
+        float pixel_grad_x = 0, pixel_grad_y = 0;
+        int pixel_x = pixel_grad.first.first, pixel_y = pixel_grad.first.second;
+        for (auto grad : pixel_grad.second) {
+            pixel_grad_x += grad.first;
+            pixel_grad_y += grad.second;
+        }
+        pixel_grad_x /= pixel_grad.second.size();
+        pixel_grad_y /= pixel_grad.second.size();
+        float pixel_grad_abs = std::sqrt(pixel_grad_x * pixel_grad_x + pixel_grad_y * pixel_grad_y);
+        if (pixel_grad_abs > 255) pixel_grad_abs = 255;
+        if (pixel_grad_abs > edge_linking_threshold) {
+            img_edge_vote_grad.at<uint8_t>(pixel_x, pixel_y) = pixel_grad_abs;
+            img_edge_vote_orien.at<float>(pixel_x, pixel_y) = wrap((std::atan2(pixel_grad_y, pixel_grad_x) * 180 / M_PI), 0, 360, 360);
+        }
+    }
+    // merge hysterisis and vote
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (img_hysteresis.at<uint8_t>(i, j)) {
+                img_edge_link_grad.at<uint8_t>(i, j) = img_hysteresis.at<uint8_t>(i, j);
+                img_edge_link_orien.at<float>(i, j) = img_angle.at<float>(i, j);
+            } else if (img_edge_vote_grad.at<uint8_t>(i, j)) {
+                img_edge_link_grad.at<uint8_t>(i, j) = img_edge_vote_grad.at<uint8_t>(i, j) = 255;
+                img_edge_link_orien.at<float>(i, j) = img_edge_vote_orien.at<float>(i, j);
+            }
+        }
+    }
+    if (interactive) {
+        cv::imshow("edge_vote", img_edge_vote_grad);
+        cv::imshow("edge_vote_grad_with_orien", color_with_grad(img_edge_vote_grad, img_edge_vote_orien));
+        cv::imshow("edge_link", img_edge_link_grad);
+        cv::imshow("edge_link_grad_with_orien", color_with_grad(img_edge_link_grad, img_edge_link_orien));
+    }
 }
