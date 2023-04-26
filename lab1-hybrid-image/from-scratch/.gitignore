@@ -1,4 +1,4 @@
 build/
-came-build-debug/
+cmake-build-debug/
 .idea/
 .vscode/
