@@ -157,4 +157,4 @@ if (img_strong.at<uint8_t>(i - 1, j - 1) | img_strong.at<uint8_t>(i - 1, j) | im
 
 <div style="text-align: center"><font size=2>图9 基本方法与使用边缘预测方法的梯度方向展示，因预测而增补的像素点仍保持与周围像素点方向基本一致</font></div>
 
-而根本上，Canny边缘检测连续性不够好的原因，是过分关注局部，缺少关键的语义信息，以下对深度学习思路进行尝试。
+而根本上，Canny边缘检测连续性不够好的原因，是过分关注局部，缺少关键的语义信息。
