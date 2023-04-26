@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/bill/mypro/CV/lab1-hybrid-image/gui/build",
-  "command": "/usr/bin/g++  -isystem /usr/local/include/opencv4 -g -o CMakeFiles/hybrid-image.dir/hybrid-image.cpp.o -c /home/bill/mypro/CV/lab1-hybrid-image/gui/hybrid-image.cpp",
-  "file": "/home/bill/mypro/CV/lab1-hybrid-image/gui/hybrid-image.cpp"
-}
-]
