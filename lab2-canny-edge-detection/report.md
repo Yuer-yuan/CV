@@ -24,7 +24,7 @@ Canny算法包括如下阶段：
 
 ## 实验设计
 
-首先基于Canny算法的主要步骤进行复现，再对其中参数进行调整，分析结果；接下来进行连续性改进实验；最后使用机器学习进行对比分析。代码详见[GitHub仓库](https://github.com/Yuer-yuan/CV/tree/main/lab2-canny-edge-detection)。
+首先基于Canny算法的主要步骤进行复现，再对其中参数进行调整，分析结果；接下来进行连续性改进实验。代码详见[GitHub仓库](https://github.com/Yuer-yuan/CV/tree/main/lab2-canny-edge-detection)。
 
 ## 实验过程与结果分析
 
