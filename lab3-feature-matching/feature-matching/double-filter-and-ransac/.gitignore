@@ -1,0 +1,8 @@
+.idea/
+.vscode/
+build/
+.cache/
+.ccls-cache/
+.cache/
+log.txt
+tmp.txt
