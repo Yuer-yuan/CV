@@ -1,0 +1,153 @@
+// void ratio_test(int, void *) {
+//     cv::Mat img_1, img_2, img_1_gray, img_2_gray;
+//     cv::Mat img_1_with_key_points, img_2_with_key_points, img_1_with_key_points_and_size, img_2_with_key_points_and_size;
+//     cv::Mat descriptors1, descriptors2;
+//     cv::Mat img_match_unfiltered, img_match;
+//     double scale = 0.2;
+//     int feature_num = 2000;
+//     cv::Ptr<cv::SIFT> sift_detector;
+//     std::vector<cv::KeyPoint> key_points1, key_points2;
+//     cv::Ptr<cv::SiftDescriptorExtractor> sift_descriptor;
+//     cv::FlannBasedMatcher matcher;
+//     std::vector<cv::DMatch> match_points;
+//     std::vector<cv::DMatch> good_match_points;
+
+//     // read imgs and convert to gray
+//     img_1 = cv::imread(img_1_path, cv::IMREAD_COLOR);
+//     img_2 = cv::imread(img_2_path, cv::IMREAD_COLOR);
+//     cv::resize(img_1, img_1, cv::Size(), scale, scale);
+//     cv::resize(img_2, img_2, cv::Size(), scale, scale);
+//     cv::cvtColor(img_1, img_1_gray, cv::COLOR_BGR2GRAY);
+//     cv::cvtColor(img_2, img_2_gray, cv::COLOR_BGR2GRAY);
+
+//     // detect feature points
+//     sift_detector = cv::SIFT::create(feature_num);
+//     sift_detector->detect(img_1_gray, key_points1);
+//     sift_detector->detect(img_2_gray, key_points2);
+    
+
+//     // compute descriptors
+//     sift_descriptor = cv::SiftDescriptorExtractor::create();
+//     sift_descriptor->compute(img_1_gray, key_points1, descriptors1);
+//     sift_descriptor->compute(img_2_gray, key_points2, descriptors2);
+
+//     // match
+//     matcher.match(descriptors1, descriptors2, match_points, cv::Mat());
+
+//     // filter
+//     double min_dist = 10000, max_dist = 0;
+//     for (int i = 0; i < descriptors1.rows; ++i) {
+//         double dist = match_points[i].distance;
+//         if (dist < min_dist) min_dist = dist;
+//         if (dist > max_dist) max_dist = dist;
+//     }
+//     for (int i = 0; i < descriptors1.rows; ++i) {
+//         if (match_points[i].distance <= 2 * min_dist) {
+//             good_match_points.push_back(match_points[i]);
+//         }
+//     }
+
+//     // draw
+//     cv::drawKeypoints(img_1, key_points1, img_1_with_key_points, cv::Scalar(0, 255, 0));
+//     cv::drawKeypoints(img_2, key_points2, img_2_with_key_points, cv::Scalar(0, 255, 0));
+//     cv::drawKeypoints(img_1, key_points1, img_1_with_key_points_and_size, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+//     cv::drawKeypoints(img_2, key_points2, img_2_with_key_points_and_size, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+//     cv::drawMatches(img_1, key_points1, img_2, key_points2, match_points, img_match_unfiltered, cv::Scalar(0, 255, 0), cv::Scalar::all(-1), std::vector<char>(), cv::DrawMatchesFlags::DEFAULT);
+//     cv::drawMatches(img_1, key_points1, img_2, key_points2, good_match_points, img_match, cv::Scalar(0, 255, 0), cv::Scalar::all(-1), std::vector<char>(), cv::DrawMatchesFlags::DEFAULT);
+//     cv::imshow("img_1", img_1);
+//     cv::imshow("img_2", img_2);
+//     cv::imshow("img_1_with_key_points", img_1_with_key_points);
+//     cv::imshow("img_2_with_key_points", img_2_with_key_points);
+//     cv::imshow("img_1_with_key_points_and_size", img_1_with_key_points_and_size);
+//     cv::imshow("img_2_with_key_points_and_size", img_2_with_key_points_and_size);
+//     cv::imshow("unfiltered", img_match_unfiltered);
+//     cv::imshow("filtered", img_match);
+//     cv::waitKey(0);
+// }
+
+// void ratio_test2(int, void *) { // ref : https://github.com/amin-abouee/robust-feature-matching/blob/master/src/RobustFeatureMatching.cpp
+//     cv::Mat img_1, img_2;
+//     cv::Mat img_match;
+
+//     // read imgs and convert to gray
+//     cv::Mat img_1_gray, img_2_gray;
+//     img_1 = cv::imread(img_1_path, cv::IMREAD_COLOR);
+//     img_2 = cv::imread(img_2_path, cv::IMREAD_COLOR);
+//     double scale = 0.2;
+//     cv::resize(img_1, img_1, cv::Size(), scale, scale);
+//     cv::resize(img_2, img_2, cv::Size(), scale, scale);
+//     cv::cvtColor(img_1, img_1_gray, cv::COLOR_BGR2GRAY);
+//     cv::cvtColor(img_2, img_2_gray, cv::COLOR_BGR2GRAY);
+
+//     // detect feature points
+//     int feature_num = 2000;
+//     cv::Ptr<cv::SIFT> sift_detector = cv::SIFT::create(feature_num);
+//     std::vector<cv::KeyPoint> key_points1, key_points2;
+//     sift_detector->detect(img_1_gray, key_points1);
+//     sift_detector->detect(img_2_gray, key_points2);
+
+//     // compute descriptors
+//     cv::Ptr<cv::SiftDescriptorExtractor> sift_descriptor_extractor = cv::SiftDescriptorExtractor::create();
+//     cv::Mat descriptors1, descriptors2;
+//     sift_descriptor_extractor->compute(img_1_gray, key_points1, descriptors1);
+//     sift_descriptor_extractor->compute(img_2_gray, key_points2, descriptors2);
+
+//     // match
+
+//     // cv::FlannBasedMatcher matcher;
+//     // std::vector<std::vector<cv::DMatch>> match_points;
+//     // std::vector<cv::Mat> train_descriptors(1, descriptors1);
+//     // matcher.add(train_descriptors);
+//     // matcher.train();
+//     // matcher.knnMatch(descriptors2, match_points, 2);
+
+//     cv::BFMatcher matcher(cv::NORM_L2);
+//     std::vector<std::vector<cv::DMatch>> match_points;
+//     matcher.knnMatch(descriptors1, descriptors2, match_points, 2);
+
+//     // filter
+//     std::vector<cv::DMatch> good_match_points;
+//     if (ratio < 1) {
+//         ratio = 1;   // make sure ratio > 0
+//         cv::setTrackbarPos("ratio", "filtered", ratio);
+//     }
+//     for (int i = 0; i < match_points.size(); i++) {
+//         if (match_points[i][0].distance < ((double)ratio / precision) * match_points[i][1].distance) {
+//             good_match_points.push_back(match_points[i][0]);
+//         }
+//     }
+
+//     std::vector<cv::Point2f> img_1_points, img_2_points;
+//     for (int i = 0; i < good_match_points.size(); i++) {
+//         img_1_points.push_back(key_points1[good_match_points[i].queryIdx].pt);
+//         img_2_points.push_back(key_points2[good_match_points[i].trainIdx].pt);
+//     }
+//     std::vector<uchar> inliers(img_1_points.size(), 0);
+//     std::vector<cv::DMatch> inlier_matches;
+//     cv::Mat fundamental = cv::findFundamentalMat(cv::Mat(img_1_points), cv::Mat(img_2_points), cv::FM_RANSAC, 3, 0.99, inliers);
+//     int inlier_num = 0;
+//     for (int i = 0; i < inliers.size(); i++) {
+//         if (inliers[i]) {
+//             inlier_num++;
+//             inlier_matches.push_back(good_match_points[i]);
+//         }
+//     }
+
+//     // draw
+//     cv::Mat img_1_with_key_points, img_2_with_key_points, img_1_with_key_points_and_size, img_2_with_key_points_and_size;
+//     // cv::drawKeypoints(img_1, key_points1, img_1_with_key_points, cv::Scalar(0, 255, 0));
+//     // cv::drawKeypoints(img_2, key_points2, img_2_with_key_points, cv::Scalar(0, 255, 0));
+//     // cv::drawKeypoints(img_1, key_points1, img_1_with_key_points_and_size, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+//     // cv::drawKeypoints(img_2, key_points2, img_2_with_key_points_and_size, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+//     cv::drawMatches(img_2, key_points2, img_1, key_points1, good_match_points, img_match);
+//     cv::Mat img_inliner_match;
+//     cv::drawMatches(img_2, key_points2, img_1, key_points1, inlier_matches, img_inliner_match);
+//     // cv::imshow("img_1", img_1);
+//     // cv::imshow("img_2", img_2);
+//     // cv::imshow("img_1_with_key_points", img_1_with_key_points);
+//     // cv::imshow("img_2_with_key_points", img_2_with_key_points);
+//     // cv::imshow("img_1_with_key_points_and_size", img_1_with_key_points_and_size);
+//     // cv::imshow("img_2_with_key_points_and_size", img_2_with_key_points_and_size);
+//     cv::imshow("filtered", img_match);
+//     cv::imshow("inliner", img_inliner_match);
+// }
