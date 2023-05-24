@@ -1,0 +1,3 @@
+/home/guo/mypro/CV/lab4-feature-extraction/MySift/cmake-build-debug/CMakeFiles/main.dir
+/home/guo/mypro/CV/lab4-feature-extraction/MySift/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/guo/mypro/CV/lab4-feature-extraction/MySift/cmake-build-debug/CMakeFiles/rebuild_cache.dir

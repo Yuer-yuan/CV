@@ -1,0 +1,5 @@
+/snap/clion/237/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/237/bin/ninja/linux/x64/ninja -G Ninja -S /home/guo/mypro/CV/lab4-feature-extraction/MySift -B /home/guo/mypro/CV/lab4-feature-extraction/MySift/cmake-build-debug
+-- Found Python3: /usr/include/python3.10 (found version "3.10.6") found components: Development Development.Module Development.Embed 
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/guo/mypro/CV/lab4-feature-extraction/MySift/cmake-build-debug
