@@ -1,0 +1,8 @@
+__pycache__/
+.vscode/
+.pycharm/
+data/__pycache__/
+cmake-build-debug/
+cmake-build-release/
+save/
+data/
