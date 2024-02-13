@@ -1,35 +1,56 @@
-//
-// Created by guo on 23-5-29.
-//
-
 #include <opencv2/opencv.hpp>
+#include <stdexcept>
 #include <string>
 
-#include "stereo_vision.h"
+#include "stereo_vision.hpp"
 
-int main() {
-    std::string dataset = "cones";  // "cones", "teddy", "tsukuba", "map"
-    std::string data_dir = "/home/guo/CLionProjects/disparity/data/";
-    std::string img1_path, img2_path;
-    img1_path = data_dir + dataset + "/im0.png";
-    img2_path = data_dir + dataset + "/im1.png";
-    cv::Mat img1 = cv::imread(img1_path);
-    cv::Mat img2 = cv::imread(img2_path);
-    CV_Assert(img1.data && img2.data);
-    CV_Assert(img1.cols == img2.cols && img1.rows == img1.rows);
+int main(int argc, char *argv[]) {
+  std::string const usage = "usage:\n"
+                            "./build/stereo [dataset_dir] local "
+                            "{methods to get correlation: SSD, SAD, NC}"
+                            "\nor\n"
+                            "./build/stereo [dataset_dir] semi";
+  if (argc < 2) {
+    throw std::runtime_error("please input [dataset_dir]\n" + usage);
+  }
+  std::string data_dir = argv[1];
+  if (data_dir[data_dir.size() - 1] != '/') {
+    data_dir += '/';
+  }
+  std::string const img1_path = data_dir + "im0.png",
+                    img2_path = data_dir + "im1.png";
+  cv::Mat const img1 = cv::imread(img1_path);
+  cv::Mat const img2 = cv::imread(img2_path);
 
-    cv::Mat img1_gray, img2_gray;
-    cv::cvtColor(img1, img1_gray, cv::COLOR_BGR2GRAY);
-    cv::cvtColor(img2, img2_gray, cv::COLOR_BGR2GRAY);
+  // convert to gray color
 
-    cv::Mat disparity, disparity_norm;
-    get_disparity(img1_gray, img2_gray, disparity,  disparity_norm, DISP_LOCAL, DISP_NC);
-//    get_disparity(img1_gray, img2_gray, disparity,  disparity_norm, DISP_SEMI);
+  cv::Mat disparity, disparity_norm;
+  if (argc == 3) {
+    if (strcmp(argv[2], "semi") != 0) {
+      throw std::runtime_error(usage);
+    }
+    SemiGlobalDisparity sgd(img1, img2);
 
-    cv::Mat disparity_norm_heat;
-    cv::applyColorMap(disparity_norm, disparity_norm_heat, cv::COLORMAP_JET);
-    cv::imshow("disparity", disparity_norm);
-    cv::imshow("disparity_norm_heat", disparity_norm_heat);
-    cv::waitKey(0);
-    return 0;
+  } else if (argc == 4) {
+    if (strcmp(argv[2], "local") != 0) {
+      throw std::runtime_error(usage);
+    }
+
+    using Corr = LocalDisparity::Corr;
+    std::map<std::string, Corr> const corr_tb{
+        {"SSD", Corr::SSD},
+        {"SAD", Corr::SAD},
+        {"NC", Corr::NC},
+    };
+    std::string const key = argv[3];
+    auto it = corr_tb.find(key);
+    if (it == corr_tb.end()) {
+      throw std::runtime_error("cannot find methods for correlation\n" + usage);
+    }
+    LocalDisparity ld(img1, img2, it->second);
+  } else {
+    throw std::runtime_error(usage);
+  }
+
+  return 0;
 }
